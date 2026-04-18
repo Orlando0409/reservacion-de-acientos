@@ -8,6 +8,8 @@ import { Legend } from "@/components/theater/legend"
 import { ReservationForm } from "@/components/theater/reservation-form"
 import { TheaterFooter } from "@/components/theater/footer"
 import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button"
+import { Sparkles } from "lucide-react"
 
 const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 const SEATS_PER_ROW = 14
@@ -107,6 +109,90 @@ export default function Page() {
     })
   }
 
+  // --- Requisito: algoritmo suggest ---
+  function suggest(numberOfSeats: number): Set<number> {
+    const defaultRes = new Set<number>()
+    // 1. Construir la matriz
+    const matrix: { id: number; estado: boolean }[][] = []
+    for (let r = 0; r < ROWS.length; r++) {
+      const rowArr = []
+      for (let c = 1; c <= SEATS_PER_ROW; c++) {
+        const intId = r * SEATS_PER_ROW + c
+        const stringId = `${ROWS[r]}${c}` // ej. "A1"
+        const isOccupied = occupied.has(stringId)
+        rowArr.push({ id: intId, estado: isOccupied })
+      }
+      matrix.push(rowArr)
+    }
+
+    if (matrix.length === 0) return defaultRes
+    const rowSize = matrix[0].length
+
+    // Regla 1: cantidad excede el tamaño de la fila
+    if (numberOfSeats > rowSize) return defaultRes
+
+    // Centro del teatro en las filas
+    const center = (matrix.length - 1) / 2
+    
+    // Regla 3: fila más cercana al centro del teatro
+    const sortedRowIndices = Array.from({ length: matrix.length }, (_, i) => i)
+      .sort((a, b) => Math.abs(a - center) - Math.abs(b - center))
+
+    // Regla 2 y búsqueda
+    for (let rIdx of sortedRowIndices) {
+      const row = matrix[rIdx]
+      let count = 0
+      let startIndex = -1
+
+      for (let cIdx = 0; cIdx < row.length; cIdx++) {
+        if (!row[cIdx].estado) { // Libre
+          if (count === 0) startIndex = cIdx
+          count++
+          if (count === numberOfSeats) {
+            const seatsSet = new Set<number>()
+            for (let i = 0; i < numberOfSeats; i++) {
+              seatsSet.add(row[startIndex + i].id)
+            }
+            return seatsSet
+          }
+        } else {
+          count = 0 // Reiniciar conteo
+          startIndex = -1
+        }
+      }
+    }
+    // Si ninguna fila tiene suficientes asientos
+    return defaultRes
+  }
+
+  function handleSuggest() {
+    const suggestedIds = suggest(quantity)
+
+    if (suggestedIds.size === 0) {
+      toast({
+        variant: "destructive",
+        title: "No hay asientos disponibles",
+        description: "No se encontraron suficientes asientos contiguos libres para la cantidad solicitada.",
+      })
+      setSelected(new Set())
+      return
+    }
+
+    const newSelected = new Set<string>()
+    for (const intId of suggestedIds) {
+      const r = Math.floor((intId - 1) / SEATS_PER_ROW)
+      const c = ((intId - 1) % SEATS_PER_ROW) + 1
+      newSelected.add(`${ROWS[r]}${c}`)
+    }
+    
+    setSelected(newSelected)
+    toast({
+      title: "Asientos sugeridos",
+      description: `Se han preseleccionado ${quantity} asientos contiguos cerca del centro.`,
+    })
+  }
+  // -------------------------------------
+
   if (!isClient) {
     return null // Evitar hidratación mismatch inicialmente si es necesario o mostrar un loader.
   }
@@ -124,9 +210,18 @@ export default function Page() {
                 <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
                   Vista desde la platea
                 </p>
-                <h2 className="font-serif text-2xl font-semibold text-foreground md:text-3xl">
+                <h2 className="mb-4 font-serif text-2xl font-semibold text-foreground md:text-3xl">
                   Elige tus asientos
                 </h2>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSuggest} 
+                  className="rounded-full shadow-sm"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Sugerir {Math.max(1, quantity)} {quantity === 1 ? "asiento" : "asientos"}
+                </Button>
               </div>
 
               <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
