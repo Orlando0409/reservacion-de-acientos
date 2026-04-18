@@ -112,4 +112,3 @@ Para aprender más sobre las herramientas utilizadas:
 - [Documentación de Tailwind CSS](https://tailwindcss.com/docs)
 - [Documentación de shadcn/ui](https://ui.shadcn.com/)
 
-<a href="https://v0.app/chat/api/kiro/clone/Orlando0409/reservaci-n-de-acientos" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
